@@ -1,0 +1,1 @@
+"""Atom dataclass and serialization."""
