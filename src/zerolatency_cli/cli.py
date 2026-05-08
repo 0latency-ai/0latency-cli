@@ -1,7 +1,9 @@
 """CLI interface for 0latency wrapper."""
 
+import sys
 import click
 from zerolatency_cli import __version__
+from zerolatency_cli.wrapper import wrap_command
 
 @click.group()
 @click.option("--local", is_flag=True, help="Force local-only storage (override cloud writes)")
@@ -38,10 +40,22 @@ def claude(ctx, agent_args):
         click.echo(f"  Storage: {storage_msg}")
         return
     
-    # Task 3 will implement the wrapper
-    click.echo("claude wrapper not yet implemented (Task 3)")
-    click.echo(f"Would run: claude {' '.join(agent_args)}")
-    click.echo(f"Local mode: {local_mode}")
+    # Capture buffer for role detection (Task 4)
+    capture_buffer = bytearray()
+    
+    def on_data(data: bytes):
+        """Callback for captured output data."""
+        capture_buffer.extend(data)
+        # Task 4 will parse this for role detection
+    
+    # Build command
+    command = ["claude"] + list(agent_args)
+    
+    # Run wrapped command
+    exit_code = wrap_command(command, on_data)
+    
+    # Exit with same code as wrapped command
+    sys.exit(exit_code)
 
 @main.command()
 def login():
