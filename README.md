@@ -17,12 +17,32 @@ pip install -e .
 # Wrap Claude Code with local-only storage
 0latency --local claude
 
+# Dry-run mode (show what would be captured)
+0latency --explain claude
+
 # Authenticate with 0Latency cloud
 0latency login
 
 # Check status
 0latency status
+
+# Pass arguments to Claude Code
+0latency claude --print "what is 2+2"
+0latency claude /path/to/project
 ```
+
+## Commands
+
+- `0latency claude [args...]` - Wrap Claude Code session with verbatim capture
+- `0latency login` - Authenticate with OAuth device-code flow
+- `0latency status` - Show auth state, storage info, and sync status
+
+## Flags
+
+- `--local` - Force local-only storage (override cloud writes)
+- `--explain` - Dry-run mode showing what would be captured
+- `--version` - Show version information
+- `--help` - Show help message
 
 ## License
 
