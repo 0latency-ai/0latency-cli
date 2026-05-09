@@ -1,0 +1,76 @@
+Claude Code 2.1.136
+[32m>[0m What is 2+2?
+4
+
+[32m>[0m Write a Python function to add two numbers
+```python
+def add(a, b):
+    return a + b
+```
+
+[32m>[0m Write a function to check if a number is prime
+```python
+def is_prime(n: int) -> bool:
+    if n < 2:
+        return False
+    if n < 4:
+        return True
+    if n % 2 == 0:
+        return False
+    for i in range(3, int(n**0.5) + 1, 2):
+        if n % i == 0:
+            return False
+    return True
+```
+
+[32m>[0m Explain what a linked list is in one sentence
+A linked list is a linear data structure where each element (node) holds a value and a pointer to the next node, allowing dynamic insertion and removal without contiguous memory.
+
+[32m>[0m What is the capital of France?
+Paris.
+
+[32m>[0m How do I reverse a string in Python?
+Use slicing with a step of -1:
+
+```python
+reversed_str = "hello"[::-1]  # "olleh"
+```
+
+[32m>[0m Write SELECT * FROM users
+```sql
+SELECT * FROM users
+```
+
+[32m>[0m What is JSON?
+JSON (JavaScript Object Notation) is a lightweight, text-based data interchange format. It uses human-readable key-value pairs and arrays to represent structured data, and is language-independent despite originating from JavaScript syntax.
+
+Basic types: strings, numbers, booleans, null, objects (`{}`), and arrays (`[]`).
+
+Example:
+```json
+{
+  "name": "Ada",
+  "age": 36,
+  "active": true,
+  "tags": ["engineer", "admin"]
+}
+```
+
+[32m>[0m Give me hello world in JavaScript
+```javascript
+console.log("Hello, World!");
+```
+
+[32m>[0m Explain recursion briefly
+Recursion is when a function calls itself to solve a smaller version of the same problem, with a base case that stops the calls from continuing forever.
+
+Example:
+```python
+def factorial(n):
+    if n <= 1:        # base case
+        return 1
+    return n * factorial(n - 1)  # recursive case
+```
+
+Each call shrinks the problem (`n - 1`) until it hits the base case, then results unwind back up the call stack.
+
