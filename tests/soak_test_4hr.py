@@ -1,7 +1,14 @@
-"""4-hour soak test for long-session stability.
+"""
+CANONICAL CP10 PHASE 3 G11 GATE — 4-hour wall-clock soak test.
+
+This is the official verification gate for CP10 P3 G11 long-session stability.
+Only a successful run of THIS file satisfies the G11 requirement.
+
+tests/soak_test_dev.py is a 5-minute accelerated dev shortcut and does NOT
+satisfy G11.
 
 Tests:
-- 400 turns over 4 hours (~100 turns/hour)
+- 400 turns over 4 hours (~100 turns/hour) — wall-clock, not accelerated
 - RSS < 500MB throughout
 - Zero atoms lost
 - p95 latency < 50ms maintained
@@ -17,7 +24,7 @@ from collections import deque
 
 
 def main():
-    print("Starting 4-hour soak test...", flush=True)
+    print("Starting CANONICAL 4-hour soak test (G11 gate)...", flush=True)
     print(f"PID: {os.getpid()}", flush=True)
     print(f"Start time: {time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
     
@@ -46,7 +53,7 @@ def main():
                 role="user" if atom_count % 2 == 0 else "assistant",
                 content=content,
                 content_raw=content.encode(),
-                timestamp=time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 agent_id="soak-test",
                 agent_name="soak",
             )
@@ -98,7 +105,7 @@ def main():
     max_rss = max(rss_samples) if rss_samples else final_rss
     
     print("\n" + "="*60, flush=True)
-    print("SOAK TEST COMPLETE", flush=True)
+    print("CANONICAL SOAK TEST COMPLETE (G11 GATE)", flush=True)
     print("="*60, flush=True)
     print(f"Duration: {elapsed/3600:.2f} hours", flush=True)
     print(f"Atoms written: {atom_count}", flush=True)

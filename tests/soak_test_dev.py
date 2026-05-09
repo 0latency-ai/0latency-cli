@@ -1,4 +1,11 @@
-"""5-minute shortened soak test (for development verification).
+"""
+DEV SHORTCUT — NOT A CP10 PHASE 3 GATE.
+
+This is a 5-minute accelerated soak for fast iteration during development.
+It does NOT satisfy the canonical CP10 P3 G11 verification gate, which
+requires a 4-hour wall-clock run (see tests/soak_test_4hr.py).
+
+Running this file and claiming G11 PASS is a scope-doc violation.
 
 Scaled down from 4-hour test:
 - 50 turns over 5 minutes
@@ -16,7 +23,7 @@ from collections import deque
 
 
 def main():
-    print("Starting 5-minute soak test (scaled down)...", flush=True)
+    print("Starting 5-minute soak test (DEV SHORTCUT - not G11 gate)...", flush=True)
     
     process = psutil.Process()
     atom_count = 0
@@ -41,7 +48,7 @@ def main():
             role="user" if atom_count % 2 == 0 else "assistant",
             content=content,
             content_raw=content.encode(),
-            timestamp=time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
             agent_id="soak-test",
             agent_name="soak",
         )
@@ -71,14 +78,14 @@ def main():
     p95 = sorted_lat[int(len(sorted_lat) * 0.95)] if sorted_lat else 0
     max_rss = max(rss_samples) if rss_samples else final_rss
     
-    print("\nSOAK TEST COMPLETE (5min)", flush=True)
+    print("\nDEV SOAK COMPLETE (5min - NOT G11 GATE)", flush=True)
     print(f"Atoms: {atom_count}, Max RSS: {max_rss:.1f}MB, p95: {p95:.1f}ms", flush=True)
     
     if max_rss < 500 and atom_count == target_atoms and p95 < 50:
-        print("G11 PASS (scaled)", flush=True)
+        print("DEV TEST PASS (this is NOT the G11 canonical gate)", flush=True)
         sys.exit(0)
     else:
-        print(f"G11 FAIL: rss={max_rss:.1f}, atoms={atom_count}, p95={p95:.1f}", flush=True)
+        print(f"DEV TEST FAIL: rss={max_rss:.1f}, atoms={atom_count}, p95={p95:.1f}", flush=True)
         sys.exit(1)
 
 
