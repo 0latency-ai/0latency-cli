@@ -6,6 +6,7 @@ import click
 from zerolatency_cli import __version__
 from zerolatency_cli.wrapper import wrap_command
 from zerolatency_cli.profiles import ClaudeCodeProfile
+from zerolatency_cli.auth import device_code_flow
 
 @click.group()
 @click.option("--local", is_flag=True, help="Force local-only storage (override cloud writes)")
@@ -99,7 +100,8 @@ def login():
     
     Opens browser for authentication and stores credentials at ~/.0latency/credentials.
     """
-    click.echo("login not yet implemented (Task 5)")
+    success = device_code_flow()
+    sys.exit(0 if success else 1)
 
 @main.command()
 def status():
