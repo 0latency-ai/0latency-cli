@@ -1,0 +1,21 @@
+[0mClaude Code 2.1.136
+[32m>[0m What is 2+2?
+2 + 2 = 4
+
+[32m>[0m List files in the current directory
+[2mListing files...[0m
+The current directory contains:
+- file1.txt
+- file2.py
+- directory/
+
+[32m>[0m What is in file1.txt?
+[2mReading file1.txt...[0m
+The file contains:
+Hello, World!
+
+[32m>[0m Thank you
+You are welcome! Is there anything else I can help with?
+
+[32m>[0m /exit
+Goodbye!
