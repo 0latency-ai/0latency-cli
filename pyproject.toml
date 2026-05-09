@@ -5,12 +5,25 @@ build-backend = "hatchling.build"
 [project]
 name = "0latency-cli"
 version = "0.1.0"
-description = "Verbatim CLI capture wrapper for Claude Code, Codex, Gemini CLI, Aider"
+description = "Transparent PTY wrapper for Claude Code with role detection and cloud atom storage"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "0Latency AI", email = "hello@0latency.ai"}
+]
+keywords = ["claude", "anthropic", "cli", "wrapper", "atoms", "verbatim", "capture"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Monitoring",
 ]
 dependencies = [
     "httpx>=0.27.0",
@@ -22,8 +35,16 @@ dependencies = [
 0latency = "zerolatency_cli.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/0latency-ai/0latency-cli"
+Homepage = "https://0latency.ai"
 Repository = "https://github.com/0latency-ai/0latency-cli"
+Issues = "https://github.com/0latency-ai/0latency-cli/issues"
+Documentation = "https://0latency.ai/docs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/zerolatency_cli"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
