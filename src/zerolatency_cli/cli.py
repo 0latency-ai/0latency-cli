@@ -7,7 +7,7 @@ from zerolatency_cli import __version__
 from zerolatency_cli.wrapper import wrap_command
 from zerolatency_cli.profiles import ClaudeCodeProfile
 from zerolatency_cli.auth import device_code_flow
-from zerolatency_cli.storage import write_atom
+from zerolatency_cli.storage import write_atom, get_atom_count, get_unsynced_count, get_db_path
 
 @click.group()
 @click.option("--local", is_flag=True, help="Force local-only storage (override cloud writes)")
@@ -109,7 +109,29 @@ def status():
     - Unsynced atom count
     - Last successful cloud sync time
     """
-    click.echo("status not yet implemented (Task 7)")
+    from zerolatency_cli.auth import load_credentials
+    from zerolatency_cli import __version__
+    
+    click.echo(f"0latency CLI v{__version__}")
+    
+    # Auth state
+    creds = load_credentials()
+    if creds:
+        tenant_id = creds.get("tenant_id", "unknown")[:8]
+        issued_at = creds.get("issued_at", "unknown")
+        click.echo(f"Auth: logged in as tenant {tenant_id}... (token issued {issued_at})")
+    else:
+        click.echo("Auth: not logged in (run  or use )")
+    
+    # Local DB stats
+    db_path = get_db_path()
+    total_atoms = get_atom_count()
+    unsynced_atoms = get_unsynced_count()
+    
+    if total_atoms > 0:
+        click.echo(f"Local DB: {db_path} ({total_atoms:,} atoms, {unsynced_atoms:,} unsynced)")
+    else:
+        click.echo(f"Local DB: {db_path} (empty)")
 
 if __name__ == "__main__":
     main()
