@@ -1,13 +1,9 @@
 """CLI interface for 0latency wrapper."""
 
 import sys
-import uuid
 import click
 from zerolatency_cli import __version__
 from zerolatency_cli.wrapper import wrap_command
-from zerolatency_cli.profiles import ClaudeCodeProfile
-from zerolatency_cli.auth import device_code_flow
-from zerolatency_cli.storage import write_atom
 
 @click.group()
 @click.option("--local", is_flag=True, help="Force local-only storage (override cloud writes)")
@@ -44,38 +40,13 @@ def claude(ctx, agent_args):
         click.echo(f"  Storage: {storage_msg}")
         return
     
-    # Generate session ID
-    session_id = str(uuid.uuid4())
-    agent_id = f"claude-code-{session_id}"
-    
-    # Extract user query if in --print mode
-    user_query = None
-    if "--print" in agent_args or "-p" in agent_args:
-        # Find the query after --print/-p
-        for i, arg in enumerate(agent_args):
-            if arg in ("--print", "-p") and i + 1 < len(agent_args):
-                user_query = agent_args[i + 1]
-                break
-    
-    # Create profile
-    profile = ClaudeCodeProfile(
-        agent_id=agent_id,
-        agent_version="2.1.136",  # Will be detected dynamically in P2
-        user_query=user_query
-    )
-    
-    # Collected atoms
-    atoms = []
-    
-    def on_atom(atom):
-        """Callback for emitted atoms."""
-        atoms.append(atom)
-        # Write to storage (local or cloud based on auth state)
-        write_atom(atom, force_local=local_mode)
+    # Capture buffer for role detection (Task 4)
+    capture_buffer = bytearray()
     
     def on_data(data: bytes):
         """Callback for captured output data."""
-        profile.parse_chunk(data, on_atom)
+        capture_buffer.extend(data)
+        # Task 4 will parse this for role detection
     
     # Build command
     command = ["claude"] + list(agent_args)
@@ -83,11 +54,7 @@ def claude(ctx, agent_args):
     # Run wrapped command
     exit_code = wrap_command(command, on_data)
     
-    # Flush any remaining buffered data
-    profile.flush(on_atom)
-    
-    # Flush complete - atoms written to storage
-    
+    # Exit with same code as wrapped command
     sys.exit(exit_code)
 
 @main.command()
@@ -96,8 +63,7 @@ def login():
     
     Opens browser for authentication and stores credentials at ~/.0latency/credentials.
     """
-    success = device_code_flow()
-    sys.exit(0 if success else 1)
+    click.echo("login not yet implemented (Task 5)")
 
 @main.command()
 def status():
