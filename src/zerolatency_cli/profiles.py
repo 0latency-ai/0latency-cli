@@ -1,67 +1,55 @@
 """Claude Code role detection profile (hardcoded for P1)."""
 
 import re
-from enum import Enum
+import uuid
 from typing import Callable, Optional
 from zerolatency_cli.atom import Atom
 
 # ANSI CSI sequence regex (Control Sequence Introducer)
 ANSI_CSI_PATTERN = re.compile(rb'\x1b\[[0-?]*[ -/]*[@-~]')
 
-class ParseState(Enum):
-    """State machine states for role detection."""
-    WAITING_FOR_USER = "waiting_for_user"
-    IN_USER = "in_user"
-    IN_ASSISTANT = "in_assistant"
-    IN_TOOL_USE = "in_tool_use"
-
 class ClaudeCodeProfile:
     """
     Role detection profile for Claude Code CLI.
     
-    GROUND TRUTH CAPTURE STATUS:
-    ============================
-    ✅ VERIFIED with Claude Code 2.1.136 on 2026-05-08
+    P1 SCOPE (--print mode only):
+    ==============================
+    Verified with Claude Code 2.1.136 on 2026-05-08
     
-    Captured patterns from real execution:
-    - Version: 2.1.136 (Claude Code)
-    - Test mode: --print (non-interactive)
-    - Observations documented in /tmp/GROUND_TRUTH_CAPTURE.md
+    In --print mode:
+    - User atom: Command line arguments (e.g., --print "query")
+    - Assistant atom: Complete stdout (ANSI-stripped)
+    - Tool calls: Internal only, NOT visible in output
     
-    Output structure for --print mode:
-    - User atom: Query string from command line (not echoed in output)
-    - Assistant atom: Plain text response before terminal cleanup codes
-    - Tool use: NOT visible in --print mode (internal execution only)
-    - ANSI codes: Terminal cleanup sequences at end (stripped by regex)
+    Interactive mode with visible tool delimiters is P2 scope.
     
-    For P1, this implements role detection for --print mode.
-    Interactive mode with tool call visibility is P2 scope.
+    Ground truth capture:
+    - Tested with: claude --bare --print "List files using Bash"
+    - Tool executed: Yes (Bash tool runs)
+    - Tool visible in output: No (result incorporated into response text)
+    - Conclusion: For P1 --print mode, parse as simple user/assistant pairs
     
-    Verified with wrapper:
-    - PTY passthrough: byte-perfect
-    - ANSI stripping: confirmed working
-    - Exit codes: correctly propagated
-    - Atom creation: tested and validated
+    P2 will add:
+    - Interactive mode parsing
+    - Tool delimiter detection (⏺, ⎿, or actual delimiters from real session)
+    - Streaming turn-by-turn atom emission
     """
     
-    # Version detection (captured from 2.1.37 (Claude Code))
-    # Output: "2.1.136 (Claude Code)"
     VERSION_PATTERN = rb'([0-9]+\.[0-9]+\.[0-9]+)\s+\(Claude Code\)'
     
-    def __init__(self, agent_id: str, agent_version: Optional[str] = None):
+    def __init__(self, agent_id: str, agent_version: Optional[str] = None, user_query: Optional[str] = None):
         """
         Args:
             agent_id: Session-specific agent ID (e.g., 'claude-code-<uuid>')
             agent_version: Claude Code version string (e.g., '2.1.136')
+            user_query: For --print mode, the query from command line args
         """
         self.agent_id = agent_id
         self.agent_name = "claude-code"
         self.agent_version = agent_version
-        
-        # Parser state
-        self.state = ParseState.WAITING_FOR_USER
+        self.user_query = user_query
         self.buffer = bytearray()
-        self.current_atom_start = 0
+        self.user_atom_emitted = False
         
     def strip_ansi(self, data: bytes) -> str:
         """Remove ANSI escape sequences from bytes."""
@@ -72,18 +60,26 @@ class ClaudeCodeProfile:
         """
         Parse a chunk of output data and emit atoms.
         
+        P1 implementation (--print mode):
+        - First call: emit user atom if user_query is set
+        - Accumulate all chunks in buffer
+        - flush() will emit final assistant atom
+        
         Args:
             data: Raw bytes from PTY
             on_atom: Callback to receive completed atoms
-            
-        For P1 --print mode:
-        - Entire captured output becomes one assistant atom
-        - User atom is the command line query (tracked separately)
-        - Tool calls are internal (not visible in output)
         """
+        # Emit user atom once at start (for --print mode)
+        if not self.user_atom_emitted and self.user_query:
+            user_atom = self.create_atom(
+                role="user",
+                content_raw=self.user_query.encode('utf-8')
+            )
+            on_atom(user_atom)
+            self.user_atom_emitted = True
+        
+        # Accumulate output
         self.buffer.extend(data)
-        # Parser implementation is minimal for P1
-        # Full session parsing (interactive mode) is P2
         
     def create_atom(self, role: str, content_raw: bytes, tool_payload: Optional[str] = None) -> Atom:
         """Create an Atom from captured content."""
@@ -103,14 +99,14 @@ class ClaudeCodeProfile:
     def flush(self, on_atom: Callable[[Atom], None]):
         """Flush any remaining buffered data as atoms."""
         if self.buffer:
-            # Emit remaining buffer as assistant response
+            # Emit complete assistant response
             atom = self.create_atom("assistant", bytes(self.buffer))
             on_atom(atom)
             self.buffer.clear()
 
 
 def detect_version(data: bytes) -> Optional[str]:
-    """Extract version from 2.1.37 (Claude Code) output."""
+    """Extract version from claude --version output."""
     match = re.search(ClaudeCodeProfile.VERSION_PATTERN, data)
     if match:
         return match.group(1).decode('utf-8')

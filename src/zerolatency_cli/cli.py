@@ -1,9 +1,11 @@
 """CLI interface for 0latency wrapper."""
 
 import sys
+import uuid
 import click
 from zerolatency_cli import __version__
 from zerolatency_cli.wrapper import wrap_command
+from zerolatency_cli.profiles import ClaudeCodeProfile
 
 @click.group()
 @click.option("--local", is_flag=True, help="Force local-only storage (override cloud writes)")
@@ -40,19 +42,53 @@ def claude(ctx, agent_args):
         click.echo(f"  Storage: {storage_msg}")
         return
     
-    # Capture buffer for role detection (Task 4)
-    capture_buffer = bytearray()
+    # Generate session ID
+    session_id = str(uuid.uuid4())
+    agent_id = f"claude-code-{session_id}"
+    
+    # Extract user query if in --print mode
+    user_query = None
+    if "--print" in agent_args or "-p" in agent_args:
+        # Find the query after --print/-p
+        for i, arg in enumerate(agent_args):
+            if arg in ("--print", "-p") and i + 1 < len(agent_args):
+                user_query = agent_args[i + 1]
+                break
+    
+    # Create profile
+    profile = ClaudeCodeProfile(
+        agent_id=agent_id,
+        agent_version="2.1.136",  # Will be detected dynamically in P2
+        user_query=user_query
+    )
+    
+    # Collected atoms
+    atoms = []
+    
+    def on_atom(atom):
+        """Callback for emitted atoms."""
+        atoms.append(atom)
+        # Task 6 will write atoms to storage here
     
     def on_data(data: bytes):
         """Callback for captured output data."""
-        capture_buffer.extend(data)
-        # Task 4 will parse this for role detection
+        profile.parse_chunk(data, on_atom)
     
     # Build command
     command = ["claude"] + list(agent_args)
     
     # Run wrapped command
     exit_code = wrap_command(command, on_data)
+    
+    # Flush any remaining buffered data
+    profile.flush(on_atom)
+    
+    # Debug output for Task 4 verification (remove in Task 6)
+    if atoms:
+        import sys
+        print(f"\n[DEBUG] Captured {len(atoms)} atoms for session {session_id}", file=sys.stderr)
+        for i, atom in enumerate(atoms):
+            print(f"[DEBUG] Atom {i+1}: role={atom.role}, content_len={len(atom.content)}, has_ansi={len(atom.content_raw) != len(atom.content)}", file=sys.stderr)
     
     # Exit with same code as wrapped command
     sys.exit(exit_code)
