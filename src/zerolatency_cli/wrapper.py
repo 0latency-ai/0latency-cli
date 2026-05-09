@@ -10,6 +10,7 @@ import tty
 import struct
 import fcntl
 from typing import Callable, Optional
+from zerolatency_cli.prompts import is_interactive_prompt
 
 class PTYWrapper:
     """Wraps a command in a PTY, capturing all I/O while maintaining transparency."""
@@ -125,8 +126,13 @@ class PTYWrapper:
                         if data:
                             # Write to stdout (user sees it)
                             os.write(sys.stdout.fileno(), data)
-                            # Callback for capture
-                            self.on_data(data)
+                            # Check if this is an interactive prompt
+                            if is_interactive_prompt(data):
+                                # Skip capture - pass through transparently
+                                pass
+                            else:
+                                # Callback for capture
+                                self.on_data(data)
                     except OSError as e:
                         # EIO means child has exited
                         if e.errno == 5:  # EIO

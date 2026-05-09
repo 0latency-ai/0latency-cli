@@ -31,6 +31,9 @@ class Atom:
     # Crash recovery metadata
     recovered: bool = False  # True if atom was imported from orphaned session
     
+    # Interactive prompt metadata
+    is_interactive_prompt: bool = False  # True if this is an interactive prompt (for future detection)
+    
     # Database fields
     id: Optional[str] = None  # UUID, generated if not provided
     tenant_id: Optional[str] = None  # Set from credentials
