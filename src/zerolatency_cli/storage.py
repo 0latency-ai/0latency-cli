@@ -6,12 +6,13 @@ import json
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
+import threading
+import time
+from collections import deque
 import httpx
 
 from zerolatency_cli.atom import Atom
 from zerolatency_cli.auth import load_credentials, get_credentials_path
-
-# Cloud API endpoint
 ATOMS_URL = "https://api.0latency.ai/atoms"
 
 def get_db_path() -> Path:
@@ -139,41 +140,112 @@ def write_atom_cloud(atom: Atom, access_token: str) -> bool:
         print(f"Cloud write error: {e}", file=sys.stderr)
         return False
 
+
+
+class AtomQueue:
+    """Thread-safe queue for atoms with 10K cap and drop-oldest policy."""
+    
+    MAX_SIZE = 10000
+    
+    def __init__(self):
+        self.queue: deque[Atom] = deque(maxlen=self.MAX_SIZE)
+        self.lock = threading.Lock()
+        self._alerted_full = False
+    
+    def enqueue(self, atom: Atom) -> None:
+        """Add atom to queue. Drop oldest if at capacity."""
+        with self.lock:
+            if len(self.queue) >= self.MAX_SIZE and not self._alerted_full:
+                print(f"\nWARNING: Atom queue full ({self.MAX_SIZE} atoms). Dropping oldest.", file=sys.stderr)
+                self._alerted_full = True
+            self.queue.append(atom)
+    
+    def dequeue(self) -> Optional[Atom]:
+        """Remove and return oldest atom from queue."""
+        with self.lock:
+            if len(self.queue) > 0:
+                return self.queue.popleft()
+            return None
+    
+    def size(self) -> int:
+        """Return current queue size."""
+        with self.lock:
+            return len(self.queue)
+
+
+class RetryWorker(threading.Thread):
+    """Background thread that retries failed atom writes with exponential backoff."""
+    
+    BACKOFF_SCHEDULE = [1, 2, 4, 8, 16, 32, 60]
+    
+    def __init__(self, queue: AtomQueue, access_token: str, daemon: bool = True):
+        super().__init__(daemon=daemon)
+        self.queue = queue
+        self.access_token = access_token
+        self.running = True
+    
+    def run(self):
+        """Main loop: dequeue atoms and retry with backoff."""
+        while self.running:
+            atom = self.queue.dequeue()
+            if atom is None:
+                time.sleep(0.1)
+                continue
+            
+            for delay in self.BACKOFF_SCHEDULE:
+                if write_atom_cloud(atom, self.access_token):
+                    break
+                time.sleep(delay)
+            else:
+                self.queue.enqueue(atom)
+                print(f"Atom {atom.id} failed all retries, re-enqueued", file=sys.stderr)
+    
+    def stop(self):
+        """Signal worker to stop."""
+        self.running = False
+
+
+# Global queue and worker
+_atom_queue: Optional[AtomQueue] = None
+_retry_worker: Optional[RetryWorker] = None
+_queue_lock = threading.Lock()
+
+
+def get_or_create_queue(access_token: str) -> tuple[AtomQueue, RetryWorker]:
+    """Get or create global atom queue and retry worker."""
+    global _atom_queue, _retry_worker
+    
+    with _queue_lock:
+        if _atom_queue is None:
+            _atom_queue = AtomQueue()
+            _retry_worker = RetryWorker(_atom_queue, access_token)
+            _retry_worker.start()
+        return _atom_queue, _retry_worker
+
 def write_atom(atom: Atom, force_local: bool = False) -> None:
     """
     Write atom to storage (local or cloud based on auth state).
     
     Routing logic:
     - If force_local=True OR no credentials: write to sqlite only
-    - If authed: attempt cloud write; on failure, write to sqlite with synced_at=NULL
-    
-    Args:
-        atom: Atom to write
-        force_local: Force local-only storage (override cloud writes)
+    - If authed: attempt cloud write; on failure, enqueue for retry (max 10K queue)
     """
-    # Check for credentials unless force_local
     creds = None if force_local else load_credentials()
     
     if creds is None:
-        # No credentials or force_local - write to sqlite only
         write_atom_local(atom)
     else:
-        # Authed - try cloud write
         access_token = creds["access_token"]
         tenant_id = creds.get("tenant_id")
         
-        # Set tenant_id on atom if available
         if tenant_id and not atom.tenant_id:
             atom.tenant_id = tenant_id
         
-        # Attempt cloud write
         if write_atom_cloud(atom, access_token):
-            # Success - also write to local with synced_at set
-            # (For P1, we just write to local; P3 will add sync tracking)
             write_atom_local(atom)
         else:
-            # Cloud write failed - fallback to local with synced_at=NULL
-            print("Cloud write failed, saving locally", file=sys.stderr)
+            queue, worker = get_or_create_queue(access_token)
+            queue.enqueue(atom)
             write_atom_local(atom)
 
 def get_atom_count() -> int:
