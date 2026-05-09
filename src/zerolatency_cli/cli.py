@@ -10,6 +10,7 @@ from zerolatency_cli.auth import device_code_flow
 from zerolatency_cli.storage import write_atom, get_atom_count, get_unsynced_count, get_db_path
 from zerolatency_cli.recovery import prompt_user_import, write_atom_to_buffer, cleanup_session_buffer
 from zerolatency_cli.chunking import chunk_atom
+from collections import deque
 
 @click.group()
 @click.option("--local", is_flag=True, help="Force local-only storage (override cloud writes)")
@@ -54,6 +55,9 @@ def claude(ctx, agent_args):
     session_id = str(uuid.uuid4())
     agent_id = f"claude-code-{session_id}"
     
+    # Session metadata ring buffer (last 100 turns only)
+    session_metadata = deque(maxlen=100)
+    
     # Extract user query if in --print mode
     user_query = None
     if "--print" in agent_args or "-p" in agent_args:
@@ -75,6 +79,13 @@ def claude(ctx, agent_args):
     
     def on_atom(atom):
         """Callback for emitted atoms."""
+        # Track in session metadata (ring buffer, max 100 turns)
+        session_metadata.append({
+            "timestamp": atom.timestamp,
+            "role": atom.role,
+            "content_length": len(atom.content_raw),
+        })
+        
         # Chunk atom if it exceeds 64KB
         chunked = chunk_atom(atom)
         
