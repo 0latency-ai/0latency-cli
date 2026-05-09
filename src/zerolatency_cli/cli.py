@@ -9,6 +9,7 @@ from zerolatency_cli.profiles.claude_code import ClaudeCodeProfile
 from zerolatency_cli.auth import device_code_flow
 from zerolatency_cli.storage import write_atom, get_atom_count, get_unsynced_count, get_db_path
 from zerolatency_cli.recovery import prompt_user_import, write_atom_to_buffer, cleanup_session_buffer
+from zerolatency_cli.chunking import chunk_atom
 
 @click.group()
 @click.option("--local", is_flag=True, help="Force local-only storage (override cloud writes)")
@@ -74,11 +75,15 @@ def claude(ctx, agent_args):
     
     def on_atom(atom):
         """Callback for emitted atoms."""
-        atoms.append(atom)
-        # Write to rolling buffer for crash recovery
-        write_atom_to_buffer(atom, session_id)
-        # Write to storage (local or cloud based on auth state)
-        write_atom(atom, force_local=local_mode)
+        # Chunk atom if it exceeds 64KB
+        chunked = chunk_atom(atom)
+        
+        for chunked_atom in chunked:
+            atoms.append(chunked_atom)
+            # Write to rolling buffer for crash recovery
+            write_atom_to_buffer(chunked_atom, session_id)
+            # Write to storage (local or cloud based on auth state)
+            write_atom(chunked_atom, force_local=local_mode)
     
     def on_data(data: bytes):
         """Callback for captured output data."""

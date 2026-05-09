@@ -34,6 +34,10 @@ class Atom:
     # Interactive prompt metadata
     is_interactive_prompt: bool = False  # True if this is an interactive prompt (for future detection)
     
+    # Chunking metadata
+    chunk_index: Optional[int] = None  # Position in chunk sequence (0-indexed)
+    chunk_total: Optional[int] = None  # Total number of chunks
+    
     # Database fields
     id: Optional[str] = None  # UUID, generated if not provided
     tenant_id: Optional[str] = None  # Set from credentials
