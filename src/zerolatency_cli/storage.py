@@ -4,7 +4,7 @@ import sys
 import sqlite3
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timezone
 import threading
 import time
@@ -276,3 +276,74 @@ def get_unsynced_count() -> int:
     except:
         return 0
 
+
+
+class BatchQueue:
+    """Batching queue for atoms (10-atom batches or 2s timeout)."""
+    
+    BATCH_SIZE = 10
+    FLUSH_INTERVAL = 2.0  # seconds
+    
+    def __init__(self, flush_callback):
+        self.queue: List[Atom] = []
+        self.lock = threading.Lock()
+        self.flush_callback = flush_callback
+        self.first_enqueue_time: Optional[float] = None
+        self.timer_thread = None
+        self._start_timer()
+    
+    def _start_timer(self):
+        """Start background timer thread for periodic flush."""
+        def timer_loop():
+            while True:
+                time.sleep(0.1)  # Check every 100ms
+                self._check_flush()
+        
+        self.timer_thread = threading.Thread(target=timer_loop, daemon=True)
+        self.timer_thread.start()
+    
+    def _check_flush(self):
+        """Check if batch should be flushed due to timeout."""
+        with self.lock:
+            if len(self.queue) == 0:
+                return
+            
+            if self.first_enqueue_time is None:
+                return
+            
+            elapsed = time.time() - self.first_enqueue_time
+            if elapsed >= self.FLUSH_INTERVAL:
+                self._flush()
+    
+    def enqueue(self, atom: Atom):
+        """Add atom to batch queue."""
+        with self.lock:
+            if len(self.queue) == 0:
+                self.first_enqueue_time = time.time()
+            
+            self.queue.append(atom)
+            
+            # Flush if batch size reached
+            if len(self.queue) >= self.BATCH_SIZE:
+                self._flush()
+    
+    def _flush(self):
+        """Flush current batch (must hold lock)."""
+        if len(self.queue) == 0:
+            return
+        
+        batch = self.queue[:]
+        self.queue.clear()
+        self.first_enqueue_time = None
+        
+        # Call flush callback without holding lock
+        self.lock.release()
+        try:
+            self.flush_callback(batch)
+        finally:
+            self.lock.acquire()
+    
+    def flush_remaining(self):
+        """Force flush any remaining atoms."""
+        with self.lock:
+            self._flush()
