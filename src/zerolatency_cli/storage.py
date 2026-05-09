@@ -1,5 +1,6 @@
 """Storage layer for atoms - sqlite (local) and HTTP (cloud) paths."""
 
+import sys
 import sqlite3
 import json
 from pathlib import Path
@@ -203,4 +204,3 @@ def get_unsynced_count() -> int:
     except:
         return 0
 
-import sys
