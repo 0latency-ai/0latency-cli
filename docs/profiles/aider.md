@@ -24,3 +24,8 @@ aider 0.86.2
 ## Profile Compatibility
 
 (To be populated after auth is configured)
+
+**Note**: Render format analysis blocked by auth requirement.
+- Aider uses rich terminal output with color/formatting
+- Expected ANSI codes: `\x1b[` sequences (to be documented from real capture)
+- File edit markers: TBD (requires real session with file edits)

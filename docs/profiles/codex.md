@@ -23,3 +23,8 @@ codex-cli 0.130.0
 ## Profile Compatibility
 
 (To be populated after auth is configured)
+
+**Note**: Render format analysis blocked by auth requirement. Based on CLI structure:
+- Expected prompt format: likely `$ ` or similar shell-style prompt
+- ANSI codes: TBD (requires real session capture)
+- Example byte sequence: `\x1b[` (common ANSI escape start, to be verified)

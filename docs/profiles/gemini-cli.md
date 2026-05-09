@@ -23,3 +23,7 @@
 ## Profile Compatibility
 
 (To be populated after auth is configured)
+
+**Note**: Render format analysis blocked by auth requirement.
+- Expected ANSI sequences: `\x1b[` or `\x1b[0m` (common escape codes, to be verified)
+- Prompt format: TBD (requires real session capture)
