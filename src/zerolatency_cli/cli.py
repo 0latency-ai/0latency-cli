@@ -5,7 +5,7 @@ import uuid
 import click
 from zerolatency_cli import __version__
 from zerolatency_cli.wrapper import wrap_command
-from zerolatency_cli.profiles import ClaudeCodeProfile
+from zerolatency_cli.profiles.claude_code import ClaudeCodeProfile
 from zerolatency_cli.auth import device_code_flow
 from zerolatency_cli.storage import write_atom, get_atom_count, get_unsynced_count, get_db_path
 
