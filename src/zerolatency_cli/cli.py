@@ -10,6 +10,7 @@ from zerolatency_cli.auth import device_code_flow
 from zerolatency_cli.storage import write_atom, get_atom_count, get_unsynced_count, get_db_path
 from zerolatency_cli.recovery import prompt_user_import, write_atom_to_buffer, cleanup_session_buffer
 from zerolatency_cli.chunking import chunk_atom
+from zerolatency_cli.tool_calls import atomize_tool_calls
 from collections import deque
 
 @click.group()
@@ -79,22 +80,26 @@ def claude(ctx, agent_args):
     
     def on_atom(atom):
         """Callback for emitted atoms."""
-        # Track in session metadata (ring buffer, max 100 turns)
-        session_metadata.append({
-            "timestamp": atom.timestamp,
-            "role": atom.role,
-            "content_length": len(atom.content_raw),
-        })
+        # Atomize tool calls first (split multi-tool-call blocks)
+        atomized = atomize_tool_calls(atom)
         
-        # Chunk atom if it exceeds 64KB
-        chunked = chunk_atom(atom)
+        for tool_atom in atomized:
+            # Track in session metadata (ring buffer, max 100 turns)
+            session_metadata.append({
+                "timestamp": tool_atom.timestamp,
+                "role": tool_atom.role,
+                "content_length": len(tool_atom.content_raw),
+            })
+            
+            # Chunk atom if it exceeds 64KB
+            chunked = chunk_atom(tool_atom)
         
-        for chunked_atom in chunked:
-            atoms.append(chunked_atom)
-            # Write to rolling buffer for crash recovery
-            write_atom_to_buffer(chunked_atom, session_id)
-            # Write to storage (local or cloud based on auth state)
-            write_atom(chunked_atom, force_local=local_mode)
+            for chunked_atom in chunked:
+                atoms.append(chunked_atom)
+                # Write to rolling buffer for crash recovery
+                write_atom_to_buffer(chunked_atom, session_id)
+                # Write to storage (local or cloud based on auth state)
+                write_atom(chunked_atom, force_local=local_mode)
     
     def on_data(data: bytes):
         """Callback for captured output data."""
