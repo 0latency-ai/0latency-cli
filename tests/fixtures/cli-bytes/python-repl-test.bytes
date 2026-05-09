@@ -1,0 +1,29 @@
+Python 3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> 2 + 2
+4
+>>> def greet(name): return fHello, {name}
+... greet(World)
+  File "<stdin>", line 2
+    greet(World)
+    ^^^^^
+SyntaxError: invalid syntax
+>>> import sys
+>>> sys.version
+'3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]'
+>>> [x**2 for x in range(5)]
+[0, 1, 4, 9, 16]
+>>> len(test)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'test' is not defined
+>>> print(Hello REPL)
+  File "<stdin>", line 1
+    print(Hello REPL)
+          ^^^^^^^^^^
+SyntaxError: invalid syntax. Perhaps you forgot a comma?
+>>> {key: value}
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'key' is not defined
+>>> exit()

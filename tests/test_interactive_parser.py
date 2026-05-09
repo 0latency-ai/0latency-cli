@@ -7,7 +7,7 @@ in a multi-turn interactive session captured from real PTY bytes.
 
 import pytest
 from pathlib import Path
-from zerolatency_cli.profiles import ClaudeCodeProfile
+from zerolatency_cli.profiles.claude_code import ClaudeCodeProfile
 from zerolatency_cli.atom import Atom
 
 

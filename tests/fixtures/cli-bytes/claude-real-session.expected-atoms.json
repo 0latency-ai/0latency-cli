@@ -1,0 +1,22 @@
+[
+  {"turn": 1, "role": "user", "content_substring": "trust"},
+  {"turn": 1, "role": "assistant", "content_substring": "No"},
+  {"turn": 2, "role": "user", "content_substring": "web server"},
+  {"turn": 2, "role": "assistant", "content_substring": "server"},
+  {"turn": 3, "role": "user", "content_substring": "README"},
+  {"turn": 3, "role": "assistant", "content_substring": "root"},
+  {"turn": 4, "role": "user", "content_substring": "Python"},
+  {"turn": 4, "role": "assistant", "content_substring": "http"},
+  {"turn": 5, "role": "user", "content_substring": "bash"},
+  {"turn": 5, "role": "assistant", "content_substring": "ls"},
+  {"turn": 6, "role": "user", "content_substring": "comprehension"},
+  {"turn": 6, "role": "assistant", "content_substring": "list"},
+  {"turn": 7, "role": "user", "content_substring": "example"},
+  {"turn": 7, "role": "assistant", "content_substring": "for"},
+  {"turn": 8, "role": "user", "content_substring": "thank"},
+  {"turn": 8, "role": "assistant", "content_substring": "welcome"},
+  {"turn": 9, "role": "user", "content_substring": ""},
+  {"turn": 9, "role": "assistant", "content_substring": ""},
+  {"turn": 10, "role": "user", "content_substring": ""},
+  {"turn": 10, "role": "assistant", "content_substring": ""}
+]
