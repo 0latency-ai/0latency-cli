@@ -1,0 +1,22 @@
+{
+  "claude_code": {
+    "iterations": 100,
+    "p50_ms": 3.64,
+    "p95_ms": 4.97,
+    "p99_ms": 5.4,
+    "min_ms": 2.89,
+    "max_ms": 5.8,
+    "profile": "ClaudeCodeProfile",
+    "fixture": "/root/0latency-cli/tests/fixtures/cli-bytes/claude-real-session.bytes"
+  },
+  "generic": {
+    "iterations": 100,
+    "p50_ms": 0.01,
+    "p95_ms": 0.02,
+    "p99_ms": 0.03,
+    "min_ms": 0.01,
+    "max_ms": 0.04,
+    "profile": "GenericProfile",
+    "fixture": "/tmp/generic-fixture.bytes"
+  }
+}

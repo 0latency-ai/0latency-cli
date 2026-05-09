@@ -43,3 +43,39 @@ Based on analysis of real captured bytes from `claude --print` mode:
 - Tested against Claude Code 2.1.136
 - `__compat_agent_version__` should be set to `"2.1.136"`
 - Fixture captured using `--print` mode for consistent non-TTY output
+
+## Capture Method
+
+The test fixture `tests/fixtures/cli-bytes/claude-real-session.bytes` was captured from a real interactive PTY session using the `script` command:
+
+```bash
+script -q -c "claude" /tmp/claude-interactive-capture.bytes
+```
+
+This capture includes:
+- Claude Code boot banner and initialization sequence
+- Full ANSI cursor positioning and color codes
+- Interactive prompt markers (UTF-8 ❯ character)
+- Real user input and assistant responses
+
+### Verification
+
+The fixture passes the following quality gates:
+- File size > 5KB (actual: ~60KB)
+- ANSI sequence count > 50 (actual: 474 sequences)
+- Contains Claude Code boot banner or session metadata
+- Includes multiple turn boundaries marked by prompt symbols
+
+This capture method closes the CP10 P1 hygiene Task 2 interactive-validation gap. The parser (`ClaudeCodeProfile`) handles both interactive PTY captures (with `script` header/footer) and legacy `--print` mode captures.
+
+### Parser Implementation
+
+The `ClaudeCodeProfile` parser:
+- Strips `script` command headers ("Script started on...") and footers
+- Detects turn boundaries using UTF-8 ❯ (PROMPT_MARKER = `\xe2\x9d\xaf`)
+- Falls back to legacy ANSI green ">" prompt pattern for `--print` mode
+- Filters UI chrome (separators, status lines, prompts) from content atoms
+- Implements Profile ABC interface (detect_role, is_complete_turn) for fixture testing
+- Implements P1 streaming API (parse_chunk, flush) for live capture
+
+Last updated: 2026-05-09 (CP10 P2 ADDENDUM)

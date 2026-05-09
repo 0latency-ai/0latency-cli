@@ -27,6 +27,9 @@ class ClaudeCodeProfile(Profile):
     VERSION_PATTERN = rb"([0-9]+\.[0-9]+\.[0-9]+)\s+\(Claude Code\)"
     # Prompt pattern: green ">" with ANSI codes
     PROMPT_PATTERN = re.compile(rb"\x1b\[32m>\x1b\[0m ")
+    # Interactive PTY prompt marker (UTF-8 ❯)
+    PROMPT_MARKER = b"\xe2\x9d\xaf"
+
     
     def __init__(self, agent_id: Optional[str] = None, agent_version: Optional[str] = None, 
                  user_query: Optional[str] = None):
@@ -86,9 +89,26 @@ class ClaudeCodeProfile(Profile):
     
     def is_complete_turn(self, buffer: bytes) -> bool:
         """Check if buffer contains at least one complete turn."""
-        # A complete turn has at least one prompt marker
-        return self.PROMPT_PATTERN.search(buffer) is not None
-    
+        cleaned = self.strip_script_header(buffer)
+        if self.PROMPT_MARKER in cleaned:
+            parts = cleaned.split(self.PROMPT_MARKER)
+            for part in parts[1:]:
+                text = self.strip_ansi(part).strip()
+                if text and len(text) > 3:
+                    lines_split = text.split("\n", 1)
+                    if lines_split[0].strip():
+                        return ProfileAtom(role="user", content=lines_split[0].strip(),
+                                         content_raw=part[:200], metadata={})
+        parts = re.split(self.PROMPT_PATTERN, cleaned)
+        for part in parts[1:]:
+            if not part.strip():
+                continue
+            lines_split = part.split(b"\n", 1)
+            if len(lines_split) >= 1 and lines_split[0].strip():
+                return ProfileAtom(role="user", content=self.strip_ansi(lines_split[0]),
+                                 content_raw=lines_split[0], metadata={})
+        return None
+
     def extract_metadata(self, buffer: bytes) -> dict:
         """Extract metadata from buffer."""
         metadata = {}
@@ -98,6 +118,18 @@ class ClaudeCodeProfile(Profile):
             metadata["has_tool_use"] = True
         
         return metadata
+    
+    def strip_script_header(self, data: bytes) -> bytes:
+        """Strip script command header/footer if present."""
+        if data.startswith(b"Script started on"):
+            first_newline = data.find(b"\n")
+            if first_newline > 0:
+                data = data[first_newline + 1:]
+        if b"Script done on" in data:
+            footer_start = data.rfind(b"Script done on")
+            if footer_start > 0:
+                data = data[:footer_start]
+        return data
     
     # ========================================================================
     # P1 Streaming API (for backward compatibility)
@@ -109,34 +141,75 @@ class ClaudeCodeProfile(Profile):
         return stripped.decode("utf-8", errors="replace")
     
     def parse_interactive(self, data: bytes, on_atom: Callable[[Atom], None]):
-        """Parse interactive session with turn detection."""
-        # Split by prompt pattern
-        parts = re.split(self.PROMPT_PATTERN, data)
+        """Parse interactive PTY session with turn detection."""
+        # Strip script header/footer
+        cleaned = self.strip_script_header(data)
         
-        # First part is initial output (version, etc.)
-        if parts[0].strip():
-            stripped = self.strip_ansi(parts[0]).strip()
-            if stripped and not stripped.startswith("Claude Code"):
-                atom = self.create_atom("assistant", parts[0])
-                on_atom(atom)
+        # Find all prompt positions
+        prompt_positions = []
+        pos = 0
+        while True:
+            idx = cleaned.find(self.PROMPT_MARKER, pos)
+            if idx == -1:
+                break
+            prompt_positions.append(idx)
+            pos = idx + len(self.PROMPT_MARKER)
         
-        # Remaining parts: user input, assistant response alternating
-        for part in parts[1:]:
-            if not part.strip():
+        if not prompt_positions:
+            # Fall back to legacy pattern
+            parts = re.split(self.PROMPT_PATTERN, cleaned)
+            if len(parts) > 1:
+                for part in parts[1:]:
+                    if not part.strip():
+                        continue
+                    lines = part.split(b"\n", 1)
+                    if len(lines) >= 1 and lines[0].strip():
+                        user_atom = self.create_atom("user", lines[0])
+                        on_atom(user_atom)
+                    if len(lines) == 2 and lines[1].strip():
+                        assistant_atom = self.create_atom("assistant", lines[1])
+                        on_atom(assistant_atom)
+            return
+        
+        # Process segments between prompts
+        for i in range(len(prompt_positions)):
+            start = prompt_positions[i] + len(self.PROMPT_MARKER)
+            end = prompt_positions[i + 1] if i + 1 < len(prompt_positions) else len(cleaned)
+            
+            segment = cleaned[start:end]
+            text = self.strip_ansi(segment).strip()
+            
+            if not text:
                 continue
             
-            # Split on first newline
-            lines = part.split(b"\n", 1)
+            # Split into lines
+            lines = text.split("\n")
             
-            if len(lines) >= 1 and lines[0].strip():
-                # User input
-                user_atom = self.create_atom("user", lines[0] + b"\n")
+            # First non-empty line is user input
+            user_line = None
+            user_idx = 0
+            for idx, line in enumerate(lines):
+                if line.strip() and len(line.strip()) > 3:
+                    user_line = line.strip()
+                    user_idx = idx
+                    break
+            
+            if user_line:
+                user_atom = self.create_atom("user", user_line.encode("utf-8"))
                 on_atom(user_atom)
             
-            if len(lines) == 2 and lines[1].strip():
-                # Assistant response
-                assistant_atom = self.create_atom("assistant", lines[1])
-                on_atom(assistant_atom)
+            # Remaining non-empty lines are assistant response
+            assistant_lines = []
+            for idx in range(user_idx + 1, len(lines)):
+                line = lines[idx].strip()
+                if line:
+                    assistant_lines.append(line)
+            
+            if assistant_lines:
+                assistant_text = " ".join(assistant_lines)
+                if len(assistant_text) > 10:
+                    assistant_atom = self.create_atom("assistant", assistant_text.encode("utf-8"))
+                    on_atom(assistant_atom)
     
     def parse_chunk(self, data: bytes, on_atom: Callable[[Atom], None]):
         """

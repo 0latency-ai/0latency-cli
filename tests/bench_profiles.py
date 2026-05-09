@@ -83,8 +83,8 @@ def main():
     # Benchmark 1: Claude Code profile
     results["claude-code"] = benchmark_profile(
         profile_name="claude-code",
-        wrapped_cmd='cd /root/0latency-cli && export PATH="$HOME/.local/bin:$PATH" && python3 -c "import subprocess; subprocess.run(['claude', '--version'], capture_output=True)"',
-        bare_cmd='export PATH="$HOME/.local/bin:$PATH" && claude --version',
+        wrapped_cmd=r"""cd /root/0latency-cli && export PATH="$HOME/.local/bin:$PATH" && python3 -c "import subprocess; subprocess.run(['claude', '--version'], capture_output=True)" """.strip(),
+        bare_cmd=r"""export PATH="$HOME/.local/bin:$PATH" && claude --version""".strip(),
         turns=turns
     )
     
