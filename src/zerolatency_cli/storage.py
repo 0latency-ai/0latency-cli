@@ -123,7 +123,7 @@ def write_atom_cloud(atom: Atom, access_token: str) -> bool:
         True on success, False on failure
     """
     try:
-        with httpx.Client(timeout=10.0) as client:
+        with httpx.Client(timeout=10.0, limits=httpx.Limits(max_connections=5)) as client:
             response = client.post(
                 ATOMS_URL,
                 json=atom.to_dict(),
