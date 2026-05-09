@@ -8,6 +8,7 @@ from zerolatency_cli.wrapper import wrap_command
 from zerolatency_cli.profiles.claude_code import ClaudeCodeProfile
 from zerolatency_cli.auth import device_code_flow
 from zerolatency_cli.storage import write_atom, get_atom_count, get_unsynced_count, get_db_path
+from zerolatency_cli.recovery import prompt_user_import, write_atom_to_buffer, cleanup_session_buffer
 
 @click.group()
 @click.option("--local", is_flag=True, help="Force local-only storage (override cloud writes)")
@@ -36,6 +37,10 @@ def claude(ctx, agent_args):
     """
     local_mode = ctx.obj.get("local", False)
     explain_mode = ctx.obj.get("explain", False)
+    
+    # Check for orphaned sessions before starting
+    if not explain_mode:
+        prompt_user_import()
     
     if explain_mode:
         click.echo("Would wrap claude with role detection profile:")
@@ -70,6 +75,8 @@ def claude(ctx, agent_args):
     def on_atom(atom):
         """Callback for emitted atoms."""
         atoms.append(atom)
+        # Write to rolling buffer for crash recovery
+        write_atom_to_buffer(atom, session_id)
         # Write to storage (local or cloud based on auth state)
         write_atom(atom, force_local=local_mode)
     
@@ -85,6 +92,9 @@ def claude(ctx, agent_args):
     
     # Flush any remaining buffered data
     profile.flush(on_atom)
+    
+    # Clean shutdown - remove rolling buffer
+    cleanup_session_buffer(session_id)
     
     # Flush complete - atoms written to storage
     

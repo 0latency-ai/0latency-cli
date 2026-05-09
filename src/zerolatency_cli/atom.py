@@ -28,6 +28,9 @@ class Atom:
     # Optional tool data
     tool_payload: Optional[str] = None  # JSON string if role='tool_use'
     
+    # Crash recovery metadata
+    recovered: bool = False  # True if atom was imported from orphaned session
+    
     # Database fields
     id: Optional[str] = None  # UUID, generated if not provided
     tenant_id: Optional[str] = None  # Set from credentials
