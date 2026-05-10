@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "0latency-cli"
-version = "0.1.0"
+version = "0.3.0"
 description = "Transparent PTY wrapper for Claude Code with role detection and cloud atom storage"
 readme = "README.md"
 requires-python = ">=3.11"

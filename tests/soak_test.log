@@ -1,0 +1,10 @@
+Starting 5-minute soak test (scaled down)...
+[10/50] RSS: 34.2MB, p95: 28.1ms
+[20/50] RSS: 34.2MB, p95: 34.7ms
+[30/50] RSS: 34.2MB, p95: 28.1ms
+[40/50] RSS: 34.3MB, p95: 34.7ms
+[50/50] RSS: 34.3MB, p95: 28.1ms
+
+SOAK TEST COMPLETE (5min)
+Atoms: 50, Max RSS: 34.3MB, p95: 28.1ms
+G11 PASS (scaled)

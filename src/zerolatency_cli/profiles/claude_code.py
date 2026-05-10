@@ -25,6 +25,7 @@ class ClaudeCodeProfile(Profile):
     agent_name = "claude-code"
     
     VERSION_PATTERN = rb"([0-9]+\.[0-9]+\.[0-9]+)\s+\(Claude Code\)"
+    MAX_BUFFER_SIZE = 128 * 1024  # 128KB buffer cap for long sessions
     # Prompt pattern: green ">" with ANSI codes
     PROMPT_PATTERN = re.compile(rb"\x1b\[32m>\x1b\[0m ")
     # Interactive PTY prompt marker (UTF-8 ❯)
@@ -52,10 +53,13 @@ class ClaudeCodeProfile(Profile):
     
     def detect_role(self, buffer: bytes) -> Optional[ProfileAtom]:
         """
-        Detect role from buffer.
+        Detect role from buffer (last 128KB only for long-session memory bounds).
         
         For testing against complete fixture buffers. Returns the first
         detected atom (user or assistant).
+        
+        Note: In live sessions, buffer is capped at 128KB to prevent unbounded
+        memory growth during long sessions (ring buffer behavior).
         """
         # Split by prompt pattern
         parts = re.split(self.PROMPT_PATTERN, buffer)
@@ -230,6 +234,9 @@ class ClaudeCodeProfile(Profile):
                 self.user_atom_emitted = True
             
             self.buffer.extend(data)
+            # Cap buffer at 128KB for long sessions (ring buffer behavior)
+            if len(self.buffer) > self.MAX_BUFFER_SIZE:
+                self.buffer = self.buffer[-self.MAX_BUFFER_SIZE:]
     
     def create_atom(self, role: str, content_raw: bytes, tool_payload: Optional[str] = None) -> Atom:
         """Create an Atom from captured content."""

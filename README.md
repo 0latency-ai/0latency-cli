@@ -47,3 +47,18 @@ pip install -e .
 ## License
 
 MIT
+
+## Reliability Features (v0.3.0)
+
+Production-hardened for long-running sessions and adverse conditions:
+
+- **Crash Recovery**: Zero atom loss via rolling buffer + auto-import
+- **Backpressure Handling**: Local queue (10K cap) with exponential backoff retry
+- **Large Paste Support**: UTF-8-safe chunking up to 1M+ characters
+- **Long-Session Stability**: Ring buffers keep RSS < 500MB in 4+ hour sessions
+- **Interactive Prompts**: Y/N and password prompts pass through (not captured)
+- **Tool-Call Tracking**: Multi-tool chains atomized with sequence metadata
+- **Async Background**: Non-blocking capture for long-running bash commands
+- **Atom Batching**: API efficiency via 10-atom batches or 2s flush
+
+See [docs/reliability.md](docs/reliability.md) for details and verification.

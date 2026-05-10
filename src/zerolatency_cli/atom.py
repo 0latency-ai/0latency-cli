@@ -28,6 +28,20 @@ class Atom:
     # Optional tool data
     tool_payload: Optional[str] = None  # JSON string if role='tool_use'
     
+    # Crash recovery metadata
+    recovered: bool = False  # True if atom was imported from orphaned session
+    
+    # Interactive prompt metadata
+    is_interactive_prompt: bool = False  # True if this is an interactive prompt (for future detection)
+    
+    # Chunking metadata
+    chunk_index: Optional[int] = None  # Position in chunk sequence (0-indexed)
+    chunk_total: Optional[int] = None  # Total number of chunks
+    
+    # Tool-call chain metadata
+    tool_call_index: Optional[int] = None  # Position in tool-call chain (0-indexed)
+    tool_call_total: Optional[int] = None  # Total tool calls in chain
+    
     # Database fields
     id: Optional[str] = None  # UUID, generated if not provided
     tenant_id: Optional[str] = None  # Set from credentials

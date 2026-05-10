@@ -8,6 +8,10 @@ from zerolatency_cli.wrapper import wrap_command
 from zerolatency_cli.profiles.claude_code import ClaudeCodeProfile
 from zerolatency_cli.auth import device_code_flow
 from zerolatency_cli.storage import write_atom, get_atom_count, get_unsynced_count, get_db_path
+from zerolatency_cli.recovery import prompt_user_import, write_atom_to_buffer, cleanup_session_buffer
+from zerolatency_cli.chunking import chunk_atom
+from zerolatency_cli.tool_calls import atomize_tool_calls
+from collections import deque
 
 @click.group()
 @click.option("--local", is_flag=True, help="Force local-only storage (override cloud writes)")
@@ -37,6 +41,10 @@ def claude(ctx, agent_args):
     local_mode = ctx.obj.get("local", False)
     explain_mode = ctx.obj.get("explain", False)
     
+    # Check for orphaned sessions before starting
+    if not explain_mode:
+        prompt_user_import()
+    
     if explain_mode:
         click.echo("Would wrap claude with role detection profile:")
         click.echo("  Agent: Claude Code")
@@ -47,6 +55,9 @@ def claude(ctx, agent_args):
     # Generate session ID
     session_id = str(uuid.uuid4())
     agent_id = f"claude-code-{session_id}"
+    
+    # Session metadata ring buffer (last 100 turns only)
+    session_metadata = deque(maxlen=100)
     
     # Extract user query if in --print mode
     user_query = None
@@ -69,9 +80,26 @@ def claude(ctx, agent_args):
     
     def on_atom(atom):
         """Callback for emitted atoms."""
-        atoms.append(atom)
-        # Write to storage (local or cloud based on auth state)
-        write_atom(atom, force_local=local_mode)
+        # Atomize tool calls first (split multi-tool-call blocks)
+        atomized = atomize_tool_calls(atom)
+        
+        for tool_atom in atomized:
+            # Track in session metadata (ring buffer, max 100 turns)
+            session_metadata.append({
+                "timestamp": tool_atom.timestamp,
+                "role": tool_atom.role,
+                "content_length": len(tool_atom.content_raw),
+            })
+            
+            # Chunk atom if it exceeds 64KB
+            chunked = chunk_atom(tool_atom)
+        
+            for chunked_atom in chunked:
+                atoms.append(chunked_atom)
+                # Write to rolling buffer for crash recovery
+                write_atom_to_buffer(chunked_atom, session_id)
+                # Write to storage (local or cloud based on auth state)
+                write_atom(chunked_atom, force_local=local_mode)
     
     def on_data(data: bytes):
         """Callback for captured output data."""
@@ -85,6 +113,9 @@ def claude(ctx, agent_args):
     
     # Flush any remaining buffered data
     profile.flush(on_atom)
+    
+    # Clean shutdown - remove rolling buffer
+    cleanup_session_buffer(session_id)
     
     # Flush complete - atoms written to storage
     
