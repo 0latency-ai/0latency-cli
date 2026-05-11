@@ -13,6 +13,7 @@ import httpx
 
 from zerolatency_cli.atom import Atom
 from zerolatency_cli.auth import load_credentials, get_credentials_path
+from zerolatency_cli.error_parsing import print_error, parse_error_envelope, print_next_action
 ATOMS_URL = "https://api.0latency.ai/atoms"
 
 def get_db_path() -> Path:
@@ -131,9 +132,20 @@ def write_atom_cloud(atom: Atom, access_token: str) -> bool:
             )
             
             if response.status_code in (200, 201):
+                # Check for next_action in successful response
+                try:
+                    response_data = response.json()
+                    print_next_action(response_data)
+                except Exception:
+                    pass  # Non-critical
                 return True
             else:
-                print(f"Cloud write failed: {response.status_code}", file=sys.stderr)
+                # Parse and display error envelope
+                try:
+                    response_data = response.json()
+                    print_error(response_data, response.status_code)
+                except Exception:
+                    print(f"Cloud write failed: {response.status_code}", file=sys.stderr)
                 return False
     
     except Exception as e:
